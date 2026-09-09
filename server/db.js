@@ -1,52 +1,21 @@
 // ==========================================================================
-// DB LAYER — SQLite via better-sqlite3 (synchronous, no ORM, easy to read).
-// One file, kandang.db, created automatically next to this file on first run.
+// DB LAYER — Neon Postgres (serverless PostgreSQL)
+// Configure DATABASE_URL (or NEON_DATABASE_URL) in a .env file.
 // ==========================================================================
 
-const path = require('path');
-const Database = require('better-sqlite3');
+require('dotenv').config();
+const { Pool } = require('pg');
 
-const db = new Database(path.join(__dirname, 'kandang.db'));
-db.pragma('journal_mode = WAL');
+const connectionString = process.env.DATABASE_URL || process.env.NEON_DATABASE_URL;
+const db = new Pool({
+  connectionString,
+  ssl: connectionString ? { rejectUnauthorized: false } : false,
+});
 
-// ---------------------------------------------------------------- schema --
-db.exec(`
-  CREATE TABLE IF NOT EXISTS app_state (
-    id INTEGER PRIMARY KEY CHECK (id = 1),
-    sensors TEXT, pakan TEXT, lampu TEXT, suhu_control TEXT, pompa TEXT,
-    telur_hari_ini INTEGER DEFAULT 0, telur_last_reset TEXT,
-    settings TEXT, esp32_online INTEGER DEFAULT 0, wifi TEXT
-  );
+db.on('error', (err) => {
+  console.error('Unexpected PostgreSQL idle client error:', err.message);
+});
 
-  CREATE TABLE IF NOT EXISTS sensor_history (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    ts INTEGER, suhu REAL, kelembapan REAL, ldr INTEGER, water_level REAL
-  );
-
-  CREATE TABLE IF NOT EXISTS pakan_riwayat (
-    id INTEGER PRIMARY KEY AUTOINCREMENT, ts INTEGER, jumlah_gram INTEGER, sumber TEXT
-  );
-  CREATE TABLE IF NOT EXISTS lampu_riwayat (
-    id INTEGER PRIMARY KEY AUTOINCREMENT, ts INTEGER, aksi TEXT
-  );
-  CREATE TABLE IF NOT EXISTS pompa_riwayat (
-    id INTEGER PRIMARY KEY AUTOINCREMENT, ts INTEGER, aksi TEXT
-  );
-  CREATE TABLE IF NOT EXISTS telur_riwayat (
-    id INTEGER PRIMARY KEY AUTOINCREMENT, ts INTEGER, jumlah INTEGER
-  );
-  CREATE TABLE IF NOT EXISTS riwayat (
-    id INTEGER PRIMARY KEY AUTOINCREMENT, ts INTEGER, category TEXT, text TEXT
-  );
-  CREATE TABLE IF NOT EXISTS notifikasi (
-    id TEXT PRIMARY KEY, ts INTEGER, type TEXT, title TEXT, message TEXT, level TEXT, read INTEGER DEFAULT 0
-  );
-  CREATE TABLE IF NOT EXISTS jadwal (
-    id TEXT PRIMARY KEY, type TEXT, time TEXT, label TEXT, active INTEGER DEFAULT 1
-  );
-`);
-
-// ------------------------------------------------------------ seed once --
 const DEFAULTS = {
   sensors: { suhu: null, kelembapan: null, ldr: null, gelap: false, waterLevel: null },
   pakan: { mode: 'auto', targetGram: 250, currentGram: 0, durasiMotorDetik: 4, sisaPersen: 100 },
@@ -60,171 +29,325 @@ const DEFAULTS = {
   wifi: { connected: false, rssi: -100 },
 };
 
-if (!db.prepare('SELECT id FROM app_state WHERE id = 1').get()) {
-  db.prepare(`
-    INSERT INTO app_state (id, sensors, pakan, lampu, suhu_control, pompa, telur_hari_ini, telur_last_reset, settings, esp32_online, wifi)
-    VALUES (1, ?, ?, ?, ?, ?, 0, ?, ?, 0, ?)
-  `).run(
-    JSON.stringify(DEFAULTS.sensors), JSON.stringify(DEFAULTS.pakan), JSON.stringify(DEFAULTS.lampu),
-    JSON.stringify(DEFAULTS.suhuControl), JSON.stringify(DEFAULTS.pompa), todayStr(),
-    JSON.stringify(DEFAULTS.settings), JSON.stringify(DEFAULTS.wifi)
-  );
+async function initSchema() {
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS app_state (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      sensors JSONB DEFAULT '{}',
+      pakan JSONB DEFAULT '{}',
+      lampu JSONB DEFAULT '{}',
+      suhu_control JSONB DEFAULT '{}',
+      pompa JSONB DEFAULT '{}',
+      telur_hari_ini INTEGER DEFAULT 0,
+      telur_last_reset TEXT,
+      settings JSONB DEFAULT '{}',
+      esp32_online BOOLEAN DEFAULT false,
+      wifi JSONB DEFAULT '{}'
+    );
+
+    CREATE TABLE IF NOT EXISTS sensor_history (
+      id SERIAL PRIMARY KEY,
+      ts BIGINT,
+      suhu DOUBLE PRECISION,
+      kelembapan DOUBLE PRECISION,
+      ldr INTEGER,
+      water_level DOUBLE PRECISION
+    );
+
+    CREATE TABLE IF NOT EXISTS pakan_riwayat (
+      id SERIAL PRIMARY KEY,
+      ts BIGINT,
+      jumlah_gram INTEGER,
+      sumber TEXT
+    );
+    CREATE TABLE IF NOT EXISTS lampu_riwayat (
+      id SERIAL PRIMARY KEY,
+      ts BIGINT,
+      aksi TEXT
+    );
+    CREATE TABLE IF NOT EXISTS pompa_riwayat (
+      id SERIAL PRIMARY KEY,
+      ts BIGINT,
+      aksi TEXT
+    );
+    CREATE TABLE IF NOT EXISTS telur_riwayat (
+      id SERIAL PRIMARY KEY,
+      ts BIGINT,
+      jumlah INTEGER
+    );
+    CREATE TABLE IF NOT EXISTS riwayat (
+      id SERIAL PRIMARY KEY,
+      ts BIGINT,
+      category TEXT,
+      text TEXT
+    );
+    CREATE TABLE IF NOT EXISTS notifikasi (
+      id TEXT PRIMARY KEY,
+      ts BIGINT,
+      type TEXT,
+      title TEXT,
+      message TEXT,
+      level TEXT,
+      read BOOLEAN DEFAULT false
+    );
+    CREATE TABLE IF NOT EXISTS jadwal (
+      id TEXT PRIMARY KEY,
+      type TEXT,
+      time TEXT,
+      label TEXT,
+      active BOOLEAN DEFAULT true
+    );
+  `);
+
+  const existing = await db.query('SELECT 1 FROM app_state WHERE id = 1');
+  if (existing.rowCount === 0) {
+    await db.query(`
+      INSERT INTO app_state (
+        id, sensors, pakan, lampu, suhu_control, pompa, telur_hari_ini,
+        telur_last_reset, settings, esp32_online, wifi
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+    `, [
+      1,
+      JSON.stringify(DEFAULTS.sensors),
+      JSON.stringify(DEFAULTS.pakan),
+      JSON.stringify(DEFAULTS.lampu),
+      JSON.stringify(DEFAULTS.suhuControl),
+      JSON.stringify(DEFAULTS.pompa),
+      0,
+      todayStr(),
+      JSON.stringify(DEFAULTS.settings),
+      false,
+      JSON.stringify(DEFAULTS.wifi),
+    ]);
+  }
 }
+
+initSchema().catch((err) => {
+  console.error('Failed to initialize Neon schema:', err);
+});
 
 function todayStr() { return new Date().toISOString().slice(0, 10); }
 function newId() { return 'id_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
+function parseJson(value, fallback = {}) {
+  if (value == null) return fallback;
+  if (typeof value === 'string') {
+    try { return JSON.parse(value); } catch (error) { return fallback; }
+  }
+  if (typeof value === 'object') return value;
+  return fallback;
+}
 
-// ------------------------------------------------------- app_state (r/w) --
-function getRawState() { return db.prepare('SELECT * FROM app_state WHERE id = 1').get(); }
+async function getRawState() {
+  const { rows } = await db.query('SELECT * FROM app_state WHERE id = 1');
+  return rows[0] || null;
+}
 
-function mergeJsonColumn(column, partial) {
-  const row = getRawState();
-  const current = JSON.parse(row[column] || '{}');
-  const merged = Object.assign(current, partial);
-  db.prepare(`UPDATE app_state SET ${column} = ? WHERE id = 1`).run(JSON.stringify(merged));
+async function mergeJsonColumn(column, partial) {
+  const row = await getRawState();
+  const current = parseJson(row && row[column], {});
+  const merged = { ...current, ...partial };
+  await db.query(`UPDATE app_state SET ${column} = COALESCE(${column}, '{}'::jsonb) || $1::jsonb WHERE id = 1`, [JSON.stringify(merged)]);
   return merged;
 }
 
-function updateSensors(partial) {
-  const merged = mergeJsonColumn('sensors', partial);
-  db.prepare('INSERT INTO sensor_history (ts, suhu, kelembapan, ldr, water_level) VALUES (?,?,?,?,?)')
-    .run(Date.now(), merged.suhu ?? null, merged.kelembapan ?? null, merged.ldr ?? null, merged.waterLevel ?? null);
+async function updateSensors(partial) {
+  const merged = await mergeJsonColumn('sensors', partial);
+  await db.query(
+    'INSERT INTO sensor_history (ts, suhu, kelembapan, ldr, water_level) VALUES ($1, $2, $3, $4, $5)',
+    [Date.now(), merged.suhu ?? null, merged.kelembapan ?? null, merged.ldr ?? null, merged.waterLevel ?? null]
+  );
   return merged;
 }
-function updatePakan(partial) { return mergeJsonColumn('pakan', partial); }
-function updateLampu(partial) { return mergeJsonColumn('lampu', partial); }
-function updateSuhuControl(partial) { return mergeJsonColumn('suhu_control', partial); }
-function updatePompa(partial) { return mergeJsonColumn('pompa', partial); }
-function updateSettings(partial) { return mergeJsonColumn('settings', partial); }
-function setEsp32Online(online) { db.prepare('UPDATE app_state SET esp32_online = ? WHERE id = 1').run(online ? 1 : 0); }
-function setWifi(partial) { return mergeJsonColumn('wifi', partial); }
+async function updatePakan(partial) { return mergeJsonColumn('pakan', partial); }
+async function updateLampu(partial) { return mergeJsonColumn('lampu', partial); }
+async function updateSuhuControl(partial) { return mergeJsonColumn('suhu_control', partial); }
+async function updatePompa(partial) { return mergeJsonColumn('pompa', partial); }
+async function updateSettings(partial) { return mergeJsonColumn('settings', partial); }
+async function setEsp32Online(online) {
+  await db.query('UPDATE app_state SET esp32_online = $1 WHERE id = 1', [Boolean(online)]);
+}
+async function setWifi(partial) { return mergeJsonColumn('wifi', partial); }
 
-function ensureTelurDayFresh() {
-  const row = getRawState();
+async function ensureTelurDayFresh() {
+  const row = await getRawState();
   const today = todayStr();
-  if (row.telur_last_reset !== today) {
-    db.prepare('UPDATE app_state SET telur_hari_ini = 0, telur_last_reset = ? WHERE id = 1').run(today);
+  if (!row || row.telur_last_reset !== today) {
+    await db.query('UPDATE app_state SET telur_hari_ini = 0, telur_last_reset = $1 WHERE id = 1', [today]);
   }
 }
-function addTelurEvent(jumlah) {
-  ensureTelurDayFresh();
-  db.prepare('INSERT INTO telur_riwayat (ts, jumlah) VALUES (?, ?)').run(Date.now(), jumlah);
-  db.prepare('UPDATE app_state SET telur_hari_ini = telur_hari_ini + ? WHERE id = 1').run(jumlah);
-}
-function getTelurHariIni() { ensureTelurDayFresh(); return getRawState().telur_hari_ini; }
 
-// ------------------------------------------------------------- riwayat --
-function addRiwayat({ category, text }) {
-  db.prepare('INSERT INTO riwayat (ts, category, text) VALUES (?,?,?)').run(Date.now(), category, text);
-  // keep table bounded
-  db.prepare(`DELETE FROM riwayat WHERE id NOT IN (SELECT id FROM riwayat ORDER BY ts DESC LIMIT 1000)`).run();
+async function addTelurEvent(jumlah) {
+  await ensureTelurDayFresh();
+  await db.query('INSERT INTO telur_riwayat (ts, jumlah) VALUES ($1, $2)', [Date.now(), jumlah]);
+  await db.query('UPDATE app_state SET telur_hari_ini = telur_hari_ini + $1 WHERE id = 1', [jumlah]);
 }
-function listRiwayat({ limit = 50, category = null } = {}) {
-  const rows = category
-    ? db.prepare('SELECT * FROM riwayat WHERE category = ? ORDER BY ts DESC LIMIT ?').all(category, limit)
-    : db.prepare('SELECT * FROM riwayat ORDER BY ts DESC LIMIT ?').all(limit);
+
+async function getTelurHariIni() {
+  await ensureTelurDayFresh();
+  const row = await getRawState();
+  return Number(row?.telur_hari_ini || 0);
+}
+
+async function addRiwayat({ category, text }) {
+  await db.query('INSERT INTO riwayat (ts, category, text) VALUES ($1, $2, $3)', [Date.now(), category, text]);
+  await db.query(`DELETE FROM riwayat WHERE id NOT IN (SELECT id FROM riwayat ORDER BY ts DESC LIMIT 1000)`);
+}
+
+async function listRiwayat({ limit = 50, category = null } = {}) {
+  const query = category
+    ? 'SELECT * FROM riwayat WHERE category = $1 ORDER BY ts DESC LIMIT $2'
+    : 'SELECT * FROM riwayat ORDER BY ts DESC LIMIT $1';
+  const params = category ? [category, Number(limit)] : [Number(limit)];
+  const { rows } = await db.query(query, params);
   return rows.map((r) => ({ id: String(r.id), t: r.ts, category: r.category, text: r.text }));
 }
 
-// ----------------------------------------------------------- notifikasi --
-function addNotifikasi({ type, title, message, level }) {
+async function addNotifikasi({ type, title, message, level }) {
   const id = newId();
-  db.prepare('INSERT INTO notifikasi (id, ts, type, title, message, level, read) VALUES (?,?,?,?,?,?,0)')
-    .run(id, Date.now(), type, title, message, level);
-  return { id, t: Date.now(), type, title, message, level, read: false };
+  const now = Date.now();
+  await db.query('INSERT INTO notifikasi (id, ts, type, title, message, level, read) VALUES ($1, $2, $3, $4, $5, $6, $7)', [id, now, type, title, message, level, false]);
+  return { id, t: now, type, title, message, level, read: false };
 }
-function listNotifikasi(limit = 50) {
-  return db.prepare('SELECT * FROM notifikasi ORDER BY ts DESC LIMIT ?').all(limit)
-    .map((r) => ({ id: r.id, t: r.ts, type: r.type, title: r.title, message: r.message, level: r.level, read: !!r.read }));
-}
-function markNotifRead(id) { db.prepare('UPDATE notifikasi SET read = 1 WHERE id = ?').run(id); }
 
-// ---------------------------------------------------------------- jadwal --
-function listJadwal() {
-  return db.prepare('SELECT * FROM jadwal ORDER BY time ASC').all()
-    .map((r) => ({ id: r.id, type: r.type, time: r.time, label: r.label, active: !!r.active }));
+async function listNotifikasi(limit = 50) {
+  const { rows } = await db.query('SELECT * FROM notifikasi ORDER BY ts DESC LIMIT $1', [Number(limit)]);
+  return rows.map((r) => ({ id: r.id, t: r.ts, type: r.type, title: r.title, message: r.message, level: r.level, read: Boolean(r.read) }));
 }
-function addJadwal({ type, time, label, active = true }) {
+
+async function markNotifRead(id) {
+  await db.query('UPDATE notifikasi SET read = true WHERE id = $1', [id]);
+}
+
+async function listJadwal() {
+  const { rows } = await db.query('SELECT * FROM jadwal ORDER BY time ASC');
+  return rows.map((r) => ({ id: r.id, type: r.type, time: r.time, label: r.label, active: Boolean(r.active) }));
+}
+
+async function addJadwal({ type, time, label, active = true }) {
   const id = newId();
-  db.prepare('INSERT INTO jadwal (id, type, time, label, active) VALUES (?,?,?,?,?)').run(id, type, time, label, active ? 1 : 0);
+  await db.query('INSERT INTO jadwal (id, type, time, label, active) VALUES ($1, $2, $3, $4, $5)', [id, type, time, label, Boolean(active)]);
   return { id, type, time, label, active };
 }
-function updateJadwal(id, partial) {
-  const existing = db.prepare('SELECT * FROM jadwal WHERE id = ?').get(id);
-  if (!existing) return null;
-  const merged = { ...existing, ...partial };
-  db.prepare('UPDATE jadwal SET type=?, time=?, label=?, active=? WHERE id=?')
-    .run(merged.type, merged.time, merged.label, merged.active ? 1 : 0, id);
+
+async function updateJadwal(id, partial) {
+  const existing = await db.query('SELECT * FROM jadwal WHERE id = $1', [id]);
+  if (existing.rowCount === 0) return null;
+  const merged = { ...existing.rows[0], ...partial };
+  await db.query('UPDATE jadwal SET type = $1, time = $2, label = $3, active = $4 WHERE id = $5', [merged.type, merged.time, merged.label, Boolean(merged.active), id]);
   return merged;
 }
-function deleteJadwal(id) { db.prepare('DELETE FROM jadwal WHERE id = ?').run(id); }
 
-// ----------------------------------------------------------- pakan/lampu/pompa events --
-function addPakanEvent({ jumlahGram, sumber }) {
-  db.prepare('INSERT INTO pakan_riwayat (ts, jumlah_gram, sumber) VALUES (?,?,?)').run(Date.now(), jumlahGram, sumber || 'Otomatis');
-}
-function listPakanRiwayat(limit = 30) {
-  return db.prepare('SELECT * FROM pakan_riwayat ORDER BY ts DESC LIMIT ?').all(limit)
-    .map((r) => ({ id: String(r.id), t: r.ts, jumlahGram: r.jumlah_gram, sumber: r.sumber }));
-}
-function addLampuEvent(aksi) { db.prepare('INSERT INTO lampu_riwayat (ts, aksi) VALUES (?,?)').run(Date.now(), aksi); }
-function listLampuRiwayat(limit = 30) {
-  return db.prepare('SELECT * FROM lampu_riwayat ORDER BY ts DESC LIMIT ?').all(limit)
-    .map((r) => ({ id: String(r.id), t: r.ts, aksi: r.aksi }));
-}
-function addPompaEvent(aksi) { db.prepare('INSERT INTO pompa_riwayat (ts, aksi) VALUES (?,?)').run(Date.now(), aksi); }
-function listPompaRiwayat(limit = 30) {
-  return db.prepare('SELECT * FROM pompa_riwayat ORDER BY ts DESC LIMIT ?').all(limit)
-    .map((r) => ({ id: String(r.id), t: r.ts, aksi: r.aksi }));
+async function deleteJadwal(id) {
+  await db.query('DELETE FROM jadwal WHERE id = $1', [id]);
 }
 
-// ------------------------------------------------------------ history/stats --
-function getSensorHistory(hours = 24) {
+async function addPakanEvent({ jumlahGram, sumber }) {
+  await db.query('INSERT INTO pakan_riwayat (ts, jumlah_gram, sumber) VALUES ($1, $2, $3)', [Date.now(), jumlahGram, sumber || 'Otomatis']);
+}
+
+async function listPakanRiwayat(limit = 30) {
+  const { rows } = await db.query('SELECT * FROM pakan_riwayat ORDER BY ts DESC LIMIT $1', [Number(limit)]);
+  return rows.map((r) => ({ id: String(r.id), t: r.ts, jumlahGram: r.jumlah_gram, sumber: r.sumber }));
+}
+
+async function addLampuEvent(aksi) {
+  await db.query('INSERT INTO lampu_riwayat (ts, aksi) VALUES ($1, $2)', [Date.now(), aksi]);
+}
+
+async function listLampuRiwayat(limit = 30) {
+  const { rows } = await db.query('SELECT * FROM lampu_riwayat ORDER BY ts DESC LIMIT $1', [Number(limit)]);
+  return rows.map((r) => ({ id: String(r.id), t: r.ts, aksi: r.aksi }));
+}
+
+async function addPompaEvent(aksi) {
+  await db.query('INSERT INTO pompa_riwayat (ts, aksi) VALUES ($1, $2)', [Date.now(), aksi]);
+}
+
+async function listPompaRiwayat(limit = 30) {
+  const { rows } = await db.query('SELECT * FROM pompa_riwayat ORDER BY ts DESC LIMIT $1', [Number(limit)]);
+  return rows.map((r) => ({ id: String(r.id), t: r.ts, aksi: r.aksi }));
+}
+
+async function getSensorHistory(hours = 24) {
   const since = Date.now() - hours * 3600 * 1000;
-  return db.prepare('SELECT * FROM sensor_history WHERE ts >= ? ORDER BY ts ASC').all(since);
-}
-function getTelurRiwayat(limit = 20) {
-  return db.prepare('SELECT * FROM telur_riwayat ORDER BY ts DESC LIMIT ?').all(limit)
-    .map((r) => ({ t: r.ts, jumlah: r.jumlah }));
-}
-function getTelurPerHari(days = 7) {
-  const rows = db.prepare(`
-    SELECT date(ts / 1000, 'unixepoch', 'localtime') AS day, SUM(jumlah) AS total
-    FROM telur_riwayat
-    WHERE ts >= ?
-    GROUP BY day ORDER BY day ASC
-  `).all(Date.now() - days * 86400 * 1000);
-  const labels = ['Ming', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
-  return rows.map((r) => ({ label: labels[new Date(r.day).getDay()], val: r.total }));
+  const { rows } = await db.query('SELECT * FROM sensor_history WHERE ts >= $1 ORDER BY ts ASC', [since]);
+  return rows;
 }
 
-// --------------------------------------------------------- full snapshot --
-function getFullState() {
-  const raw = getRawState();
+async function getTelurRiwayat(limit = 20) {
+  const { rows } = await db.query('SELECT * FROM telur_riwayat ORDER BY ts DESC LIMIT $1', [Number(limit)]);
+  return rows.map((r) => ({ t: r.ts, jumlah: r.jumlah }));
+}
+
+async function getTelurPerHari(days = 7) {
+  const since = Date.now() - days * 86400 * 1000;
+  const { rows } = await db.query(`
+    SELECT date(to_timestamp(ts / 1000)) AS day, SUM(jumlah) AS total
+    FROM telur_riwayat
+    WHERE ts >= $1
+    GROUP BY date(to_timestamp(ts / 1000))
+    ORDER BY day ASC
+  `, [since]);
+  const labels = ['Ming', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+  return rows.map((row) => ({
+    label: labels[new Date(row.day).getDay()],
+    val: Number(row.total || 0),
+  }));
+}
+
+async function getFullState() {
+  const raw = await getRawState();
+  if (!raw) return { sensors: {}, pakan: {}, lampu: {}, suhuControl: {}, pompa: {}, telur: { hariIni: 0, riwayatDeteksi: [], perHari: [] }, settings: {}, esp32: { online: false }, wifi: {}, jadwal: [], riwayat: [], notifikasi: [] };
+
   return {
-    sensors: JSON.parse(raw.sensors),
-    pakan: JSON.parse(raw.pakan),
-    lampu: JSON.parse(raw.lampu),
-    suhuControl: JSON.parse(raw.suhu_control),
-    pompa: JSON.parse(raw.pompa),
-    telur: { hariIni: getTelurHariIni(), riwayatDeteksi: getTelurRiwayat(20), perHari: getTelurPerHari(7) },
-    settings: JSON.parse(raw.settings),
-    esp32: { online: !!raw.esp32_online },
-    wifi: JSON.parse(raw.wifi),
-    jadwal: listJadwal(),
-    riwayat: listRiwayat({ limit: 50 }),
-    notifikasi: listNotifikasi(30),
+    sensors: parseJson(raw.sensors, {}),
+    pakan: parseJson(raw.pakan, {}),
+    lampu: parseJson(raw.lampu, {}),
+    suhuControl: parseJson(raw.suhu_control, {}),
+    pompa: parseJson(raw.pompa, {}),
+    telur: {
+      hariIni: await getTelurHariIni(),
+      riwayatDeteksi: await getTelurRiwayat(20),
+      perHari: await getTelurPerHari(7),
+    },
+    settings: parseJson(raw.settings, {}),
+    esp32: { online: Boolean(raw.esp32_online) },
+    wifi: parseJson(raw.wifi, {}),
+    jadwal: await listJadwal(),
+    riwayat: await listRiwayat({ limit: 50 }),
+    notifikasi: await listNotifikasi(30),
   };
 }
 
 module.exports = {
-  db, getFullState,
-  updateSensors, updatePakan, updateLampu, updateSuhuControl, updatePompa, updateSettings,
-  setEsp32Online, setWifi,
-  addTelurEvent, getTelurHariIni, getTelurRiwayat, getTelurPerHari,
-  addRiwayat, listRiwayat,
-  addNotifikasi, listNotifikasi, markNotifRead,
-  listJadwal, addJadwal, updateJadwal, deleteJadwal,
-  addPakanEvent, listPakanRiwayat, addLampuEvent, listLampuRiwayat, addPompaEvent, listPompaRiwayat,
+  db,
+  getFullState,
+  updateSensors,
+  updatePakan,
+  updateLampu,
+  updateSuhuControl,
+  updatePompa,
+  updateSettings,
+  setEsp32Online,
+  setWifi,
+  addTelurEvent,
+  getTelurHariIni,
+  getTelurRiwayat,
+  getTelurPerHari,
+  addRiwayat,
+  listRiwayat,
+  addNotifikasi,
+  listNotifikasi,
+  markNotifRead,
+  listJadwal,
+  addJadwal,
+  updateJadwal,
+  deleteJadwal,
+  addPakanEvent,
+  listPakanRiwayat,
+  addLampuEvent,
+  listLampuRiwayat,
+  addPompaEvent,
+  listPompaRiwayat,
   getSensorHistory,
 };

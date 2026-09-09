@@ -1,30 +1,19 @@
 {
   "name": "kandang-server",
   "version": "1.0.0",
-  "description": "API server for KandangKu dashboard (SQLite-backed)",
+  "description": "KandangKu API + WebSocket backend for Neon Postgres",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
-  },
-  "dependencies": {
-    "better-sqlite3": "^8.0.0",
-    "cors": "^2.8.5",
-    "express": "^4.18.2"
-  }
-}
-{
-  "name": "kandang-ayam-backend",
-  "version": "1.0.0",
-  "description": "Backend + SQLite database for the KandangKu IoT chicken coop dashboard",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js",
-    "dev": "node --watch server.js",
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "ws": "node server.js",
     "simulate": "node simulate-esp32.js"
   },
   "dependencies": {
-    "better-sqlite3": "^11.3.0",
-    "express": "^4.19.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.18.2",
+    "pg": "^8.13.0",
     "ws": "^8.18.0"
   }
 }

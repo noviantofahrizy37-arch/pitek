@@ -61,15 +61,15 @@ function forwardToEsp32(type, payload) {
   const msg = JSON.stringify({ type, payload });
   esp32s.forEach((ws) => { if (ws.readyState === ws.OPEN) ws.send(msg); });
 }
-function logAndBroadcastRiwayat(category, text) {
-  db.addRiwayat({ category, text });
+async function logAndBroadcastRiwayat(category, text) {
+  await db.addRiwayat({ category, text });
   broadcastToDashboards('riwayat_entry', { category, text });
 }
 
 wss.on('connection', (ws) => {
   ws.role = null;
 
-  ws.on('message', (raw) => {
+  ws.on('message', async (raw) => {
     let msg;
     try { msg = JSON.parse(raw); } catch (e) { return; }
 
@@ -77,28 +77,28 @@ wss.on('connection', (ws) => {
       ws.role = msg.role === 'esp32' ? 'esp32' : 'dashboard';
       if (ws.role === 'esp32') {
         esp32s.add(ws);
-        db.setEsp32Online(true);
+        await db.setEsp32Online(true);
         broadcastToDashboards('esp32_status', { online: true });
-        logAndBroadcastRiwayat('sistem', 'ESP32 tersambung ke backend');
+        await logAndBroadcastRiwayat('sistem', 'ESP32 tersambung ke backend');
       } else {
         dashboards.add(ws);
-        ws.send(JSON.stringify({ type: 'state_snapshot', data: db.getFullState() }));
+        ws.send(JSON.stringify({ type: 'state_snapshot', data: await db.getFullState() }));
       }
       return;
     }
 
-    if (ws.role === 'esp32') handleEsp32Message(msg);
-    else if (ws.role === 'dashboard') handleDashboardMessage(msg);
+    if (ws.role === 'esp32') await handleEsp32Message(msg);
+    else if (ws.role === 'dashboard') await handleDashboardMessage(msg);
   });
 
-  ws.on('close', () => {
+  ws.on('close', async () => {
     if (ws.role === 'esp32') {
       esp32s.delete(ws);
       if (esp32s.size === 0) {
-        db.setEsp32Online(false);
+        await db.setEsp32Online(false);
         broadcastToDashboards('esp32_status', { online: false });
-        logAndBroadcastRiwayat('sistem', 'ESP32 terputus dari backend');
-        db.addNotifikasi({ type: 'esp32_offline', title: 'ESP32 terputus', message: 'Perangkat kehilangan koneksi ke backend.', level: 'danger' });
+        await logAndBroadcastRiwayat('sistem', 'ESP32 terputus dari backend');
+        await db.addNotifikasi({ type: 'esp32_offline', title: 'ESP32 terputus', message: 'Perangkat kehilangan koneksi ke backend.', level: 'danger' });
         broadcastToDashboards('notifikasi', { notifType: 'esp32_offline', title: 'ESP32 terputus', message: 'Perangkat kehilangan koneksi ke backend.', level: 'danger' });
       }
     } else if (ws.role === 'dashboard') {
@@ -108,66 +108,66 @@ wss.on('connection', (ws) => {
 });
 
 // ---------------------------------------------------- ESP32 -> backend --
-function handleEsp32Message(msg) {
+async function handleEsp32Message(msg) {
   const { type, data = {} } = msg;
   switch (type) {
     case 'sensor_update': {
-      const merged = db.updateSensors(data);
+      const merged = await db.updateSensors(data);
       broadcastToDashboards('sensor_update', merged);
       break;
     }
     case 'pakan_status': {
-      const merged = db.updatePakan(data);
+      const merged = await db.updatePakan(data);
       broadcastToDashboards('pakan_status', merged);
       break;
     }
     case 'pakan_event': {
-      db.addPakanEvent({ jumlahGram: data.jumlahGram, sumber: data.sumber || 'Otomatis' });
-      logAndBroadcastRiwayat('pakan', `Pakan diberikan (${data.jumlahGram}g) — ${data.sumber || 'otomatis'}`);
-      broadcastToDashboards('pakan_status', db.updatePakan({ currentGram: data.jumlahGram }));
+      await db.addPakanEvent({ jumlahGram: data.jumlahGram, sumber: data.sumber || 'Otomatis' });
+      await logAndBroadcastRiwayat('pakan', `Pakan diberikan (${data.jumlahGram}g) — ${data.sumber || 'otomatis'}`);
+      broadcastToDashboards('pakan_status', await db.updatePakan({ currentGram: data.jumlahGram }));
       break;
     }
     case 'lampu_status': {
-      const merged = db.updateLampu(data);
+      const merged = await db.updateLampu(data);
       broadcastToDashboards('lampu_status', merged);
       break;
     }
     case 'lampu_event': {
-      db.addLampuEvent(data.aksi);
-      logAndBroadcastRiwayat('lampu', data.aksi);
+      await db.addLampuEvent(data.aksi);
+      await logAndBroadcastRiwayat('lampu', data.aksi);
       break;
     }
     case 'suhu_status': {
-      const merged = db.updateSuhuControl(data);
+      const merged = await db.updateSuhuControl(data);
       broadcastToDashboards('suhu_status', merged);
       break;
     }
     case 'pompa_status': {
-      const merged = db.updatePompa(data);
+      const merged = await db.updatePompa(data);
       broadcastToDashboards('pompa_status', merged);
       break;
     }
     case 'pompa_event': {
-      db.addPompaEvent(data.aksi);
-      logAndBroadcastRiwayat('pompa', data.aksi);
+      await db.addPompaEvent(data.aksi);
+      await logAndBroadcastRiwayat('pompa', data.aksi);
       break;
     }
     case 'telur_detected': {
-      db.addTelurEvent(data.jumlah || 1);
-      logAndBroadcastRiwayat('telur', `${data.jumlah || 1} telur baru terdeteksi`);
+      await db.addTelurEvent(data.jumlah || 1);
+      await logAndBroadcastRiwayat('telur', `${data.jumlah || 1} telur baru terdeteksi`);
       broadcastToDashboards('telur_detected', { t: Date.now(), jumlah: data.jumlah || 1 });
       break;
     }
     case 'riwayat_entry':
-      logAndBroadcastRiwayat(data.category, data.text);
+      await logAndBroadcastRiwayat(data.category, data.text);
       break;
     case 'notifikasi': {
-      db.addNotifikasi({ type: data.notifType, title: data.title, message: data.message, level: data.level });
+      await db.addNotifikasi({ type: data.notifType, title: data.title, message: data.message, level: data.level });
       broadcastToDashboards('notifikasi', data);
       break;
     }
     case 'wifi_status': {
-      const merged = db.setWifi(data);
+      const merged = await db.setWifi(data);
       broadcastToDashboards('wifi_status', merged);
       break;
     }
@@ -176,88 +176,88 @@ function handleEsp32Message(msg) {
 }
 
 // -------------------------------------------------- Dashboard -> backend --
-function handleDashboardMessage(msg) {
+async function handleDashboardMessage(msg) {
   const { type, payload = {} } = msg;
   switch (type) {
     case 'feed_now':
       forwardToEsp32('feed_now');
       break;
     case 'set_pakan_mode':
-      broadcastToDashboards('pakan_status', db.updatePakan({ mode: payload.mode }));
+      broadcastToDashboards('pakan_status', await db.updatePakan({ mode: payload.mode }));
       forwardToEsp32('set_pakan_mode', payload);
       break;
     case 'set_pakan_config':
-      broadcastToDashboards('pakan_status', db.updatePakan(payload));
+      broadcastToDashboards('pakan_status', await db.updatePakan(payload));
       forwardToEsp32('set_pakan_config', payload);
       break;
     case 'set_lampu_mode':
-      broadcastToDashboards('lampu_status', db.updateLampu({ mode: payload.mode }));
+      broadcastToDashboards('lampu_status', await db.updateLampu({ mode: payload.mode }));
       forwardToEsp32('set_lampu_mode', payload);
       break;
     case 'set_lampu_manual':
-      broadcastToDashboards('lampu_status', db.updateLampu({ manualOn: payload.on, isOn: payload.on }));
+      broadcastToDashboards('lampu_status', await db.updateLampu({ manualOn: payload.on, isOn: payload.on }));
       forwardToEsp32('set_lampu_manual', payload);
       break;
     case 'set_lampu_threshold':
-      broadcastToDashboards('lampu_status', db.updateLampu(payload));
+      broadcastToDashboards('lampu_status', await db.updateLampu(payload));
       forwardToEsp32('set_lampu_threshold', payload);
       break;
     case 'set_suhu_config':
-      broadcastToDashboards('suhu_status', db.updateSuhuControl(payload));
+      broadcastToDashboards('suhu_status', await db.updateSuhuControl(payload));
       forwardToEsp32('set_suhu_config', payload);
       break;
     case 'set_kipas_manual':
-      broadcastToDashboards('suhu_status', db.updateSuhuControl({ kipasOn: payload.on }));
+      broadcastToDashboards('suhu_status', await db.updateSuhuControl({ kipasOn: payload.on }));
       forwardToEsp32('set_kipas_manual', payload);
       break;
     case 'set_pompa_mode':
-      broadcastToDashboards('pompa_status', db.updatePompa({ mode: payload.mode }));
+      broadcastToDashboards('pompa_status', await db.updatePompa({ mode: payload.mode }));
       forwardToEsp32('set_pompa_mode', payload);
       break;
     case 'set_pompa_manual':
-      broadcastToDashboards('pompa_status', db.updatePompa({ isOn: payload.on }));
+      broadcastToDashboards('pompa_status', await db.updatePompa({ isOn: payload.on }));
       forwardToEsp32('set_pompa_manual', payload);
       break;
     case 'set_pompa_threshold':
-      broadcastToDashboards('pompa_status', db.updatePompa(payload));
+      broadcastToDashboards('pompa_status', await db.updatePompa(payload));
       forwardToEsp32('set_pompa_threshold', payload);
       break;
     case 'add_jadwal':
-      db.addJadwal(payload);
-      broadcastToDashboards('jadwal_sync', { jadwal: db.listJadwal() });
+      await db.addJadwal(payload);
+      broadcastToDashboards('jadwal_sync', { jadwal: await db.listJadwal() });
       forwardToEsp32('add_jadwal', payload);
       break;
     case 'update_jadwal':
-      db.updateJadwal(payload.id, payload);
-      broadcastToDashboards('jadwal_sync', { jadwal: db.listJadwal() });
+      await db.updateJadwal(payload.id, payload);
+      broadcastToDashboards('jadwal_sync', { jadwal: await db.listJadwal() });
       forwardToEsp32('update_jadwal', payload);
       break;
     case 'delete_jadwal':
-      db.deleteJadwal(payload.id);
-      broadcastToDashboards('jadwal_sync', { jadwal: db.listJadwal() });
+      await db.deleteJadwal(payload.id);
+      broadcastToDashboards('jadwal_sync', { jadwal: await db.listJadwal() });
       forwardToEsp32('delete_jadwal', payload);
       break;
     case 'update_settings':
-      broadcastToDashboards('settings_sync', { settings: db.updateSettings(payload) });
+      broadcastToDashboards('settings_sync', { settings: await db.updateSettings(payload) });
       break;
     case 'calibrate_sensor':
-      logAndBroadcastRiwayat('sistem', `Kalibrasi sensor ${payload.sensor} diminta`);
+      await logAndBroadcastRiwayat('sistem', `Kalibrasi sensor ${payload.sensor} diminta`);
       forwardToEsp32('calibrate_sensor', payload);
       break;
     case 'mark_notif_read':
-      db.markNotifRead(payload.id);
+      await db.markNotifRead(payload.id);
       break;
     default: break;
   }
 }
 
 // -------------------------------------------------------------- REST API --
-app.get('/api/state', (req, res) => res.json(db.getFullState()));
+app.get('/api/state', async (req, res) => res.json(await db.getFullState()));
 
-app.get('/api/riwayat', (req, res) => {
-  res.json(db.listRiwayat({ limit: +req.query.limit || 50, category: req.query.category || null }));
+app.get('/api/riwayat', async (req, res) => {
+  res.json(await db.listRiwayat({ limit: +req.query.limit || 50, category: req.query.category || null }));
 });
-app.get('/api/notifikasi', (req, res) => res.json(db.listNotifikasi(+req.query.limit || 50)));
+app.get('/api/notifikasi', async (req, res) => res.json(await db.listNotifikasi(+req.query.limit || 50)));
 app.post('/api/notifikasi/:id/read', (req, res) => { db.markNotifRead(req.params.id); res.json({ ok: true }); });
 
 app.get('/api/jadwal', (req, res) => res.json(db.listJadwal()));

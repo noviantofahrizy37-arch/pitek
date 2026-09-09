@@ -7,24 +7,21 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-// Health
 app.get('/api/health', (req, res) => res.json({ ok: true, ts: Date.now() }));
 
-// Full state
-app.get('/api/state', (req, res) => {
+app.get('/api/state', async (req, res) => {
   try {
-    return res.json(db.getFullState());
+    return res.json(await db.getFullState());
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: String(err) });
   }
 });
 
-// Sensor history
-app.get('/api/sensors', (req, res) => {
+app.get('/api/sensors', async (req, res) => {
   const hours = Number(req.query.hours || 24);
   try {
-    const rows = db.getSensorHistory(hours);
+    const rows = await db.getSensorHistory(hours);
     return res.json(rows);
   } catch (err) {
     console.error(err);
@@ -32,21 +29,20 @@ app.get('/api/sensors', (req, res) => {
   }
 });
 
-// Commands (accepts JSON with { type, data })
-app.post('/api/command', (req, res) => {
+app.post('/api/command', async (req, res) => {
   const { type, data } = req.body || {};
   try {
     switch (type) {
-      case 'sensor_update': db.updateSensors(data); break;
-      case 'pakan_status': db.updatePakan(data); break;
-      case 'lampu_status': db.updateLampu(data); break;
-      case 'suhu_status': db.updateSuhuControl(data); break;
-      case 'pompa_status': db.updatePompa(data); break;
-      case 'telur_detected': db.addTelurEvent(data.jumlah || 1); break;
-      case 'riwayat_entry': db.addRiwayat(data); break;
-      case 'notifikasi': db.addNotifikasi(data); break;
-      case 'esp32_status': db.setEsp32Online(Boolean(data.online)); break;
-      case 'wifi_status': db.setWifi(data); break;
+      case 'sensor_update': await db.updateSensors(data); break;
+      case 'pakan_status': await db.updatePakan(data); break;
+      case 'lampu_status': await db.updateLampu(data); break;
+      case 'suhu_status': await db.updateSuhuControl(data); break;
+      case 'pompa_status': await db.updatePompa(data); break;
+      case 'telur_detected': await db.addTelurEvent(data.jumlah || 1); break;
+      case 'riwayat_entry': await db.addRiwayat(data); break;
+      case 'notifikasi': await db.addNotifikasi(data); break;
+      case 'esp32_status': await db.setEsp32Online(Boolean(data.online)); break;
+      case 'wifi_status': await db.setWifi(data); break;
       default: return res.status(400).json({ error: 'unknown_command' });
     }
     return res.json({ ok: true });
@@ -56,32 +52,30 @@ app.post('/api/command', (req, res) => {
   }
 });
 
-// Riwayat
-app.get('/api/riwayat', (req, res) => {
+app.get('/api/riwayat', async (req, res) => {
   const limit = Number(req.query.limit || 50);
   const category = req.query.category || null;
   try {
-    return res.json(db.listRiwayat({ limit, category }));
+    return res.json(await db.listRiwayat({ limit, category }));
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: String(err) });
   }
 });
 
-// Notifikasi
-app.get('/api/notifikasi', (req, res) => {
+app.get('/api/notifikasi', async (req, res) => {
   const limit = Number(req.query.limit || 50);
   try {
-    return res.json(db.listNotifikasi(limit));
+    return res.json(await db.listNotifikasi(limit));
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: String(err) });
   }
 });
 
-app.post('/api/notifikasi', (req, res) => {
+app.post('/api/notifikasi', async (req, res) => {
   try {
-    const row = db.addNotifikasi(req.body);
+    const row = await db.addNotifikasi(req.body);
     return res.json(row);
   } catch (err) {
     console.error(err);
@@ -89,9 +83,9 @@ app.post('/api/notifikasi', (req, res) => {
   }
 });
 
-app.post('/api/notifikasi/:id/read', (req, res) => {
+app.post('/api/notifikasi/:id/read', async (req, res) => {
   try {
-    db.markNotifRead(req.params.id);
+    await db.markNotifRead(req.params.id);
     return res.json({ ok: true });
   } catch (err) {
     console.error(err);
@@ -99,11 +93,10 @@ app.post('/api/notifikasi/:id/read', (req, res) => {
   }
 });
 
-// Jadwal CRUD
-app.get('/api/jadwal', (req, res) => res.json(db.listJadwal()));
-app.post('/api/jadwal', (req, res) => res.json(db.addJadwal(req.body)));
-app.put('/api/jadwal/:id', (req, res) => res.json(db.updateJadwal(req.params.id, req.body)));
-app.delete('/api/jadwal/:id', (req, res) => { db.deleteJadwal(req.params.id); res.json({ ok: true }); });
+app.get('/api/jadwal', async (req, res) => res.json(await db.listJadwal()));
+app.post('/api/jadwal', async (req, res) => res.json(await db.addJadwal(req.body)));
+app.put('/api/jadwal/:id', async (req, res) => res.json(await db.updateJadwal(req.params.id, req.body)));
+app.delete('/api/jadwal/:id', async (req, res) => { await db.deleteJadwal(req.params.id); res.json({ ok: true }); });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log('Kandang API listening on', PORT));
