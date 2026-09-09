@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F3F7F1">
+<title>KandangKu — Dashboard Kandang Ayam Pintar</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="app-shell">
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-left">
+      <button class="icon-btn" id="btn-menu" aria-label="Menu"></button>
+      <div class="brand">
+        <span class="brand-name" id="hdr-name">Kandang Ayam</span>
+        <span class="brand-sub"><span class="dot online" id="hdr-dot"></span><span id="hdr-status-label">Menghubungkan…</span></span>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="icon-btn" id="btn-notif" aria-label="Notifikasi">
+        <span id="hdr-notif-badge" class="badge-dot" style="display:none"></span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Connection banner -->
+  <div class="conn-banner" id="conn-banner"><span id="conn-banner-text"></span></div>
+
+  <!-- Main content -->
+  <main class="app-main" id="app-main">
+    <section class="page active" id="page-overview"></section>
+    <section class="page" id="page-pakan"></section>
+    <section class="page" id="page-lampu"></section>
+    <section class="page" id="page-suhu"></section>
+    <section class="page" id="page-air"></section>
+    <section class="page" id="page-telur"></section>
+    <section class="page" id="page-jadwal"></section>
+    <section class="page" id="page-riwayat"></section>
+    <section class="page" id="page-notifikasi"></section>
+    <section class="page" id="page-pengaturan"></section>
+  </main>
+
+  <!-- FAB (only shown on Jadwal page) -->
+  <button class="fab" id="fab-add-jadwal" style="display:none" aria-label="Tambah Jadwal"></button>
+
+  <!-- Bottom nav -->
+  <nav class="bottom-nav">
+    <button class="nav-btn" data-page="overview"><span class="nav-icon-wrap"></span>Overview</button>
+    <button class="nav-btn" data-page="pakan"><span class="nav-icon-wrap"></span>Pakan</button>
+    <button class="nav-btn" data-page="lampu"><span class="nav-icon-wrap"></span>Lampu</button>
+    <button class="nav-btn" data-page="notifikasi"><span class="nav-icon-wrap"></span>Notifikasi</button>
+    <button class="nav-btn" id="btn-menu-bottom"><span class="nav-icon-wrap"></span>Menu</button>
+  </nav>
+
+  <!-- Drawer -->
+  <div class="drawer-backdrop" id="drawer-backdrop"></div>
+  <aside class="drawer" id="drawer">
+    <div class="drawer-head">
+      <div class="card-row">
+        <div class="brand-name">KandangKu</div>
+        <button class="icon-btn" id="btn-drawer-close"></button>
+      </div>
+    </div>
+    <div class="drawer-body">
+      <div class="drawer-group-label">PEMANTAUAN</div>
+      <a class="drawer-item" data-page="overview"></a>
+      <a class="drawer-item" data-page="suhu"></a>
+      <a class="drawer-item" data-page="air"></a>
+      <a class="drawer-item" data-page="telur"></a>
+
+      <div class="drawer-group-label">KONTROL</div>
+      <a class="drawer-item" data-page="pakan"></a>
+      <a class="drawer-item" data-page="lampu"></a>
+      <a class="drawer-item" data-page="jadwal"></a>
+
+      <div class="drawer-group-label">SISTEM</div>
+      <a class="drawer-item" data-page="riwayat"></a>
+      <a class="drawer-item" data-page="notifikasi"></a>
+      <a class="drawer-item" data-page="pengaturan"></a>
+    </div>
+    <div class="drawer-foot text-sm text-secondary">KandangKu v1.0.0</div>
+  </aside>
+
+  <!-- Modal (Jadwal add/edit) -->
+  <div class="modal-backdrop" id="modal-backdrop">
+    <div class="modal-sheet" id="modal-sheet"></div>
+  </div>
+
+  <!-- Toasts -->
+  <div class="toast-stack" id="toast-stack"></div>
+
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/icons.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/store.js"></script>
+<script src="js/toast.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/modal.js"></script>
+<script src="js/mock-data.js"></script>
+<script src="js/db.js"></script>
+<script src="js/websocket-client.js"></script>
+<script src="js/render/overview.js"></script>
+<script src="js/render/pakan.js"></script>
+<script src="js/render/lampu.js"></script>
+<script src="js/render/suhu.js"></script>
+<script src="js/render/air.js"></script>
+<script src="js/render/telur.js"></script>
+<script src="js/render/jadwal.js"></script>
+<script src="js/render/riwayat.js"></script>
+<script src="js/render/notifikasi.js"></script>
+<script src="js/render/pengaturan.js"></script>
+<script src="js/app.js"></script>
+
+<script>
+  // Fill in icons + drawer/nav labels here (keeps the markup above readable)
+  document.getElementById('btn-menu').innerHTML = ICONS.menu;
+  document.getElementById('btn-menu-bottom').querySelector('.nav-icon-wrap').innerHTML = ICONS.menu;
+  document.getElementById('btn-menu-bottom').onclick = () => document.getElementById('btn-menu').click();
+  document.getElementById('btn-notif').innerHTML += ICONS.bell;
+  document.getElementById('btn-drawer-close').innerHTML = ICONS.close;
+  document.getElementById('fab-add-jadwal').innerHTML = ICONS.plus;
+
+  const NAV_ICON = { overview: ICONS.home, pakan: ICONS.feed, lampu: ICONS.lamp, notifikasi: ICONS.bell };
+  document.querySelectorAll('.nav-btn[data-page]').forEach((btn) => {
+    btn.querySelector('.nav-icon-wrap').innerHTML = NAV_ICON[btn.dataset.page];
+  });
+
+  const DRAWER_META = {
+    overview: [ICONS.home, 'Overview'], suhu: [ICONS.thermo, 'Suhu & Kelembapan'], air: [ICONS.droplet, 'Air / Pompa'], telur: [ICONS.egg, 'Telur'],
+    pakan: [ICONS.feed, 'Pakan'], lampu: [ICONS.lamp, 'Lampu'], jadwal: [ICONS.calendar, 'Jadwal'],
+    riwayat: [ICONS.history, 'Riwayat'], notifikasi: [ICONS.bell, 'Notifikasi'], pengaturan: [ICONS.settings, 'Pengaturan'],
+  };
+  document.querySelectorAll('.drawer-item[data-page]').forEach((a) => {
+    const [icon, label] = DRAWER_META[a.dataset.page];
+    a.innerHTML = icon + '<span>' + label + '</span>';
+  });
+</script>
+
+</body>
+</html>

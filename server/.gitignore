@@ -1,0 +1,4 @@
+node_modules/
+kandang.db
+kandang.db-journal
+*.log
