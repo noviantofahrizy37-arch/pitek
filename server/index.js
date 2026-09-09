@@ -7,6 +7,23 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
+app.get('/api/test-db', async (req, res) => {
+  try {
+    const result = await db.query('SELECT NOW() AS now');
+    res.json({
+      success: true,
+      message: 'Vercel berhasil terhubung ke Neon',
+      time: result.rows[0].now
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 app.get('/api/health', (req, res) => res.json({ ok: true, ts: Date.now() }));
 
 app.get('/api/state', async (req, res) => {
