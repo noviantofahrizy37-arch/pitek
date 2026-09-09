@@ -79,3 +79,4 @@ server di path/port sesuai yang kamu isi di Pengaturan (default port `81`).
 - **Tambah tipe notifikasi baru**: kirim pesan `notifikasi` dari firmware
   dengan `level: "info" | "warn" | "danger"` — ikon & warna menyesuaikan
   otomatis.
+# pitek
