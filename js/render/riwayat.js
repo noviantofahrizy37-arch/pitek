@@ -45,12 +45,12 @@ const PageRiwayat = (() => {
   function row(r) {
     const m = PageOverview.catMeta(r.category);
     return `<div class="list-item">
-      <div class="li-icon" style="background:${m.bg};color:${m.color}">${m.icon}</div>
+      <div class="li-icon" style="background:${m.bg};color:${m.color}">${m.icon || ''}</div>
       <div class="li-main"><div class="li-title">${r.text}</div></div>
       <div class="li-time">${Fmt.time(r.t)}</div>
     </div>`;
   }
-  function empty() { return `<div class="empty-state">${ICONS.history}<div class="es-title">Belum ada aktivitas</div><div class="es-sub">Coba ubah filter kategori</div></div>`; }
+  function empty() { const _ICONS = (typeof ICONS !== 'undefined' ? ICONS : (window.ICONS || {})); return `<div class="empty-state">${_ICONS.history || ''}<div class="es-title">Belum ada aktivitas</div><div class="es-sub">Coba ubah filter kategori</div></div>`; }
 
   return { mount, render };
 })();

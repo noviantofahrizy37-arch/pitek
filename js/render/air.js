@@ -1,5 +1,6 @@
 const PageAir = (() => {
   let el;
+  let _ICONS;
   function mount() { el = document.getElementById('page-air'); Store.subscribe((section) => { if (section === 'pompa' || section === 'sensors') render(); }); }
 
   function render() {
@@ -8,6 +9,7 @@ const PageAir = (() => {
     const level = Store.get().sensors.waterLevel ?? 0;
     const isAuto = p.mode === 'auto';
     const low = level < p.minLevel;
+    _ICONS = (typeof ICONS !== 'undefined' ? ICONS : (window.ICONS || {}));
 
     el.innerHTML = `
       <div class="page-head">
@@ -15,7 +17,7 @@ const PageAir = (() => {
         <div class="page-subtitle">Sensor level air (HC-SR04)</div>
       </div>
 
-      ${low ? `<div class="banner danger">${ICONS.warning}<div><b>Level air rendah</b>Level air ${level}%, di bawah batas minimum ${p.minLevel}%.</div></div>` : ''}
+      ${low ? `<div class="banner danger">${_ICONS.warning || ''}<div><b>Level air rendah</b>Level air ${level}%, di bawah batas minimum ${p.minLevel}%.</div></div>` : ''}
 
       <div class="card">
         <div class="gauge-wrap">
@@ -36,7 +38,7 @@ const PageAir = (() => {
         </div>
         <div class="card-row mt-12" style="padding-top:14px;border-top:1px solid var(--border)">
           <div class="flex items-center gap-12">
-            <div class="li-icon" style="background:var(--water-soft);color:var(--water)">${ICONS.droplet}</div>
+            <div class="li-icon" style="background:var(--water-soft);color:var(--water)">${_ICONS.droplet || ''}</div>
             <div><div class="li-title">Pompa Air</div><div class="li-sub">${isAuto ? 'Otomatis mengikuti batas level' : 'Kontrol manual'}</div></div>
           </div>
           <label class="switch">
@@ -79,12 +81,12 @@ const PageAir = (() => {
   }
   function row(r) {
     return `<div class="list-item">
-      <div class="li-icon" style="background:var(--water-soft);color:var(--water)">${ICONS.droplet}</div>
+      <div class="li-icon" style="background:var(--water-soft);color:var(--water)">${_ICONS.droplet || ''}</div>
       <div class="li-main"><div class="li-title">${r.aksi}</div></div>
       <div class="li-time">${Fmt.time(r.t)}</div>
     </div>`;
   }
-  function empty() { return `<div class="empty-state">${ICONS.droplet}<div class="es-title">Kosong</div><div class="es-sub">Belum ada riwayat pompa</div></div>`; }
+  function empty() { return `<div class="empty-state">${_ICONS.droplet || ''}<div class="es-title">Kosong</div><div class="es-sub">Belum ada riwayat pompa</div></div>`; }
 
   return { mount, render };
 })();

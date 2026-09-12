@@ -8,6 +8,7 @@ const PageSuhu = (() => {
     const sensors = Store.get().sensors;
     const isAuto = sc.mode === 'auto';
     const outOfRange = sensors.suhu != null && (sensors.suhu < sc.minC || sensors.suhu > sc.maxC);
+    const _ICONS = (typeof ICONS !== 'undefined' ? ICONS : (window.ICONS || {}));
 
     el.innerHTML = `
       <div class="page-head">
@@ -15,16 +16,16 @@ const PageSuhu = (() => {
         <div class="page-subtitle">Sensor DHT22 · kontrol kipas otomatis</div>
       </div>
 
-      ${outOfRange ? `<div class="banner danger">${ICONS.warning}<div><b>Suhu di luar batas aman</b>Suhu saat ini ${sensors.suhu}°C, batas ${sc.minC}–${sc.maxC}°C.</div></div>` : ''}
+      ${outOfRange ? `<div class="banner danger">${_ICONS.warning || ''}<div><b>Suhu di luar batas aman</b>Suhu saat ini ${sensors.suhu}°C, batas ${sc.minC}–${sc.maxC}°C.</div></div>` : ''}
 
       <div class="kpi-grid">
         <div class="kpi-card primary">
-          <div class="kpi-icon">${ICONS.thermo}</div>
+          <div class="kpi-icon">${_ICONS.thermo || ''}</div>
           <div class="kpi-label">Temperatur Realtime</div>
           <div class="kpi-value">${sensors.suhu ?? '--'}°C</div>
         </div>
         <div class="kpi-card plain">
-          <div class="kpi-icon">${ICONS.droplet}</div>
+          <div class="kpi-icon">${_ICONS.droplet || ''}</div>
           <div class="kpi-label">Kelembapan Realtime</div>
           <div class="kpi-value">${sensors.kelembapan ?? '--'}%</div>
         </div>
@@ -43,7 +44,7 @@ const PageSuhu = (() => {
 
         <div class="card-row mt-12" style="padding-top:14px;border-top:1px solid var(--border)">
           <div class="flex items-center gap-12">
-            <div class="li-icon" style="background:var(--water-soft);color:var(--water)">${ICONS.fan}</div>
+            <div class="li-icon" style="background:var(--water-soft);color:var(--water)">${_ICONS.fan || ''}</div>
             <div><div class="li-title">Kipas Pendingin</div><div class="li-sub">${isAuto ? `Otomatis — menyala saat suhu > ${sc.maxC}°C` : 'Kontrol manual'}</div></div>
           </div>
           <label class="switch">

@@ -1,10 +1,12 @@
 const PageJadwal = (() => {
   let el, filter = 'semua';
+  let _ICONS;
   function mount() { el = document.getElementById('page-jadwal'); Store.subscribe((section) => { if (section === 'jadwal') render(); }); }
 
   function render() {
     if (!el) return;
     const all = Store.get().jadwal;
+    _ICONS = (typeof ICONS !== 'undefined' ? ICONS : (window.ICONS || {}));
     const list = filter === 'semua' ? all : all.filter((j) => j.type === filter);
 
     el.innerHTML = `
@@ -39,10 +41,11 @@ const PageJadwal = (() => {
   function chip(f, label) { return `<div class="chip ${filter === f ? 'active' : ''}" data-f="${f}">${label}</div>`; }
 
   function typeMeta(type) {
+    const _ICONS = (typeof ICONS !== 'undefined' ? ICONS : (window.ICONS || {}));
     const map = {
-      pakan: { icon: ICONS.feed, bg: 'var(--feed-soft)', color: 'var(--feed)' },
-      lampu: { icon: ICONS.lamp, bg: 'var(--light-soft)', color: 'var(--light)' },
-      lainnya: { icon: ICONS.calendar, bg: 'var(--surface-alt)', color: 'var(--text-secondary)' },
+      pakan: { icon: _ICONS.feed || '', bg: 'var(--feed-soft)', color: 'var(--feed)' },
+      lampu: { icon: _ICONS.lamp || '', bg: 'var(--light-soft)', color: 'var(--light)' },
+      lainnya: { icon: _ICONS.calendar || '', bg: 'var(--surface-alt)', color: 'var(--text-secondary)' },
     };
     return map[type] || map.lainnya;
   }
@@ -53,16 +56,16 @@ const PageJadwal = (() => {
       <div class="li-icon" style="background:${m.bg};color:${m.color}">${m.icon}</div>
       <div class="li-main"><div class="li-title">${j.label}</div><div class="li-sub">${j.time} · ${j.type}</div></div>
       <label class="switch" style="margin-right:6px"><input type="checkbox" data-toggle="${j.id}" ${j.active ? 'checked' : ''}><span class="track"></span></label>
-      <button class="icon-btn" style="width:32px;height:32px" data-edit="${j.id}">${ICONS.edit}</button>
-      <button class="icon-btn" style="width:32px;height:32px" data-del="${j.id}">${ICONS.trash}</button>
+      <button class="icon-btn" style="width:32px;height:32px" data-edit="${j.id}">${_ICONS.edit || ''}</button>
+      <button class="icon-btn" style="width:32px;height:32px" data-del="${j.id}">${_ICONS.trash || ''}</button>
     </div>`;
   }
-  function empty() { return `<div class="empty-state">${ICONS.calendar}<div class="es-title">Belum ada jadwal</div><div class="es-sub">Ketuk tombol + untuk menambah</div></div>`; }
+  function empty() { return `<div class="empty-state">${_ICONS.calendar || ''}<div class="es-title">Belum ada jadwal</div><div class="es-sub">Ketuk tombol + untuk menambah</div></div>`; }
 
   function openForm(existing) {
     const isEdit = !!existing;
     Modal.open(`
-      <div class="modal-head"><h3>${isEdit ? 'Edit Jadwal' : 'Tambah Jadwal'}</h3><button class="icon-btn" id="jd-close">${ICONS.close}</button></div>
+      <div class="modal-head"><h3>${isEdit ? 'Edit Jadwal' : 'Tambah Jadwal'}</h3><button class="icon-btn" id="jd-close">${_ICONS.close || ''}</button></div>
       <div class="field">
         <label>Jenis</label>
         <select id="jd-type">

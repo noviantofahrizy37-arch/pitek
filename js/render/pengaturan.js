@@ -6,6 +6,7 @@ const PagePengaturan = (() => {
     if (!el) return;
     const st = Store.get().settings;
     const conn = Store.get().connection;
+    const _ICONS = (typeof ICONS !== 'undefined' ? ICONS : (window.ICONS || {}));
 
     el.innerHTML = `
       <div class="page-head">
@@ -25,7 +26,10 @@ const PagePengaturan = (() => {
           <input type="text" id="pg-ws-url" value="${KandangSocket.currentUrl()}" placeholder="ws://192.168.4.1:81">
           <div class="field-hint">Format: ws://[IP atau hostname ESP32]:[port]. Default AP: ws://192.168.4.1:81</div>
         </div>
-        <button class="btn btn-primary w-full" id="pg-connect">${ICONS.refresh} Simpan &amp; Hubungkan</button>
+          <div class="flex gap-8">
+            <button class="btn btn-primary btn-sm" id="pg-connect">${_ICONS.refresh || ''} Simpan &amp; Hubungkan</button>
+            <button class="btn btn-outline btn-sm" id="pg-demo-toggle">${_ICONS.home || ''} Aktifkan Demo</button>
+          </div>
       </div>
 
       
@@ -53,17 +57,17 @@ const PagePengaturan = (() => {
           <input type="number" id="pg-ldr" value="${st.thresholdLdr}">
         </div>
       </div>
-      <button class="btn btn-outline w-full mt-12" id="pg-save-settings">Simpan Pengaturan</button>
+      <button class="btn btn-outline btn-sm mt-12" id="pg-save-settings">Simpan Pengaturan</button>
 
       <div class="section-label">Kalibrasi Sensor</div>
       <div class="card">
         <div class="list-item">
-          <div class="li-icon" style="background:var(--feed-soft);color:var(--feed)">${ICONS.scale}</div>
+          <div class="li-icon" style="background:var(--feed-soft);color:var(--feed)">${_ICONS.scale || ''}</div>
           <div class="li-main"><div class="li-title">Load Cell (Sensor Pakan)</div><div class="li-sub">Tara ulang titik nol sensor</div></div>
           <button class="btn btn-outline btn-sm" data-cal="loadcell">Kalibrasi</button>
         </div>
         <div class="list-item">
-          <div class="li-icon" style="background:var(--light-soft);color:var(--light)">${ICONS.eye}</div>
+          <div class="li-icon" style="background:var(--light-soft);color:var(--light)">${_ICONS.eye || ''}</div>
           <div class="li-main"><div class="li-title">LDR (Sensor Cahaya)</div><div class="li-sub">Sesuaikan dengan kondisi kandang</div></div>
           <button class="btn btn-outline btn-sm" data-cal="ldr">Kalibrasi</button>
         </div>
@@ -81,6 +85,34 @@ const PagePengaturan = (() => {
       if (!url) return Toast.show('Alamat tidak boleh kosong', 'danger');
       KandangSocket.setUrl(url);
       Toast.show('Menghubungkan ke ' + url + ' …');
+    };
+
+    // Demo toggle
+    const demoBtn = document.getElementById('pg-demo-toggle');
+    function updateDemoLabel() {
+      const conn = Store.get().connection;
+      if (conn.status === 'online') {
+        demoBtn.textContent = 'Demo (dinonaktifkan saat online)';
+        demoBtn.disabled = true;
+        demoBtn.title = 'Nonaktifkan ESP32 terlebih dahulu untuk mengaktifkan mode demo.';
+        return;
+      }
+      demoBtn.disabled = false;
+      demoBtn.title = '';
+      demoBtn.textContent = conn.demo ? 'Nonaktifkan Demo' : 'Aktifkan Demo';
+    }
+    updateDemoLabel();
+    demoBtn.onclick = () => {
+      const conn = Store.get().connection;
+      if (conn.status === 'online') return Toast.show('Tidak bisa mengaktifkan demo saat ESP32 terhubung', 'danger');
+      if (conn.demo) {
+        KandangSocket.stopDemo();
+        Toast.show('Mode demo dimatikan', 'info');
+      } else {
+        KandangSocket.startDemo();
+        Toast.show('Mode demo diaktifkan', 'info');
+      }
+      setTimeout(updateDemoLabel, 120);
     };
 
     

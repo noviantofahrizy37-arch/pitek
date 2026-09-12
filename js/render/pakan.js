@@ -1,6 +1,7 @@
 const PagePakan = (() => {
   let el;
   function mount() { el = document.getElementById('page-pakan'); Store.subscribe((section) => { if (section === 'pakan' || section === 'connection') render(); }); }
+  const _ICONS = (typeof ICONS !== 'undefined' ? ICONS : (window.ICONS || {}));
 
   function render() {
     if (!el) return;
@@ -13,7 +14,7 @@ const PagePakan = (() => {
         <div class="page-subtitle">Atur pemberian pakan otomatis atau manual</div>
       </div>
 
-      ${s.sisaPersen <= 15 ? `<div class="banner danger">${ICONS.warning}<div><b>Pakan hampir habis</b>Sisa pakan tinggal ${s.sisaPersen}%, segera isi ulang.</div></div>` : ''}
+      ${s.sisaPersen <= 15 ? `<div class="banner danger">${_ICONS.warning || ''}<div><b>Pakan hampir habis</b>Sisa pakan tinggal ${s.sisaPersen}%, segera isi ulang.</div></div>` : ''}
 
       <div class="card">
         <div class="card-row">
@@ -36,7 +37,7 @@ const PagePakan = (() => {
         </div>
       </div>
 
-      <button class="btn btn-feed w-full mt-12" id="pk-feed-now">${ICONS.feed} Beri Pakan Sekarang</button>
+      <button class="btn btn-feed btn-sm mt-12" id="pk-feed-now">${_ICONS.feed || ''} Beri Pakan Sekarang</button>
 
       <div class="section-label">Konfigurasi</div>
       <div class="card">
@@ -58,7 +59,7 @@ const PagePakan = (() => {
         </div>
       </div>
 
-      <div class="section-label">Jadwal Pemberian Pakan<span class="hint" id="pk-see-jadwal" style="cursor:pointer">Kelola ${ICONS.chevronRight}</span></div>
+      <div class="section-label">Jadwal Pemberian Pakan<span class="hint" id="pk-see-jadwal" style="cursor:pointer">Kelola ${_ICONS.chevronRight || ''}</span></div>
       <div class="card">
         ${jadwalPreview()}
       </div>
@@ -109,8 +110,8 @@ const PagePakan = (() => {
   function jadwalPreview() {
     const list = Store.get().jadwal.filter((j) => j.type === 'pakan');
     if (!list.length) return empty('Belum ada jadwal pakan');
-    return list.map((j) => `<div class="list-item">
-      <div class="li-icon" style="background:var(--feed-soft);color:var(--feed)">${ICONS.clock}</div>
+      return list.map((j) => `<div class="list-item">
+      <div class="li-icon" style="background:var(--feed-soft);color:var(--feed)">${_ICONS.clock || ''}</div>
       <div class="li-main"><div class="li-title">${j.label}</div><div class="li-sub">${j.time}</div></div>
       <span class="pill ${j.active ? 'up' : 'neutral'}">${j.active ? 'Aktif' : 'Nonaktif'}</span>
     </div>`).join('');
@@ -118,13 +119,13 @@ const PagePakan = (() => {
 
   function row(r) {
     return `<div class="list-item">
-      <div class="li-icon" style="background:var(--feed-soft);color:var(--feed)">${ICONS.feed}</div>
+      <div class="li-icon" style="background:var(--feed-soft);color:var(--feed)">${_ICONS.feed || ''}</div>
       <div class="li-main"><div class="li-title">${Fmt.num(r.jumlahGram)} gram</div><div class="li-sub">${r.sumber || 'Otomatis'}</div></div>
       <div class="li-time">${Fmt.time(r.t)}</div>
     </div>`;
   }
   function empty(msg = 'Belum ada riwayat pemberian pakan') {
-    return `<div class="empty-state">${ICONS.feed}<div class="es-title">Kosong</div><div class="es-sub">${msg}</div></div>`;
+    return `<div class="empty-state">${_ICONS.feed || ''}<div class="es-title">Kosong</div><div class="es-sub">${msg}</div></div>`;
   }
 
   return { mount, render };

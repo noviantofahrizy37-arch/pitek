@@ -36,6 +36,7 @@
     <section class="page" id="page-pakan"></section>
     <section class="page" id="page-lampu"></section>
     <section class="page" id="page-suhu"></section>
+    <section class="page" id="page-kipas"></section>
     <section class="page" id="page-air"></section>
     <section class="page" id="page-telur"></section>
     <section class="page" id="page-jadwal"></section>
@@ -52,6 +53,7 @@
     <button class="nav-btn" data-page="overview"><span class="nav-icon-wrap"></span>Overview</button>
     <button class="nav-btn" data-page="pakan"><span class="nav-icon-wrap"></span>Pakan</button>
     <button class="nav-btn" data-page="lampu"><span class="nav-icon-wrap"></span>Lampu</button>
+    <button class="nav-btn" data-page="kipas"><span class="nav-icon-wrap"></span>Kipas</button>
     <button class="nav-btn" data-page="notifikasi"><span class="nav-icon-wrap"></span>Notifikasi</button>
     <button class="nav-btn" id="btn-menu-bottom"><span class="nav-icon-wrap"></span>Menu</button>
   </nav>
@@ -75,6 +77,7 @@
       <div class="drawer-group-label">KONTROL</div>
       <a class="drawer-item" data-page="pakan"></a>
       <a class="drawer-item" data-page="lampu"></a>
+      <a class="drawer-item" data-page="kipas"></a>
       <a class="drawer-item" data-page="jadwal"></a>
 
       <div class="drawer-group-label">SISTEM</div>
@@ -97,6 +100,11 @@
 
 <script src="js/config.js"></script>
 <script src="js/icons.js"></script>
+<script src="js/icon-loader.js"></script>
+<script>
+  // Ensure global ICONS identifier exists to avoid ReferenceError
+  if (typeof ICONS === 'undefined') { window.ICONS = window.ICONS || {}; var ICONS = window.ICONS; }
+</script>
 <script src="js/utils.js"></script>
 <script src="js/store.js"></script>
 <script src="js/toast.js"></script>
@@ -108,7 +116,8 @@
 <script src="js/render/overview.js"></script>
 <script src="js/render/pakan.js"></script>
 <script src="js/render/lampu.js"></script>
-<script src="js/render/suhu.js"></script>
+  <script src="js/render/suhu.js"></script>
+<script src="js/render/kipas.js"></script>
 <script src="js/render/air.js"></script>
 <script src="js/render/telur.js"></script>
 <script src="js/render/jadwal.js"></script>
@@ -119,25 +128,28 @@
 
 <script>
   // Fill in icons + drawer/nav labels here (keeps the markup above readable)
-  document.getElementById('btn-menu').innerHTML = ICONS.menu;
-  document.getElementById('btn-menu-bottom').querySelector('.nav-icon-wrap').innerHTML = ICONS.menu;
+  const __ICONS = (typeof ICONS !== 'undefined' ? ICONS : (window.ICONS || {}));
+  document.getElementById('btn-menu').innerHTML = __ICONS.menu || '';
+  const menuBottomIconWrap = document.getElementById('btn-menu-bottom').querySelector('.nav-icon-wrap');
+  if (menuBottomIconWrap) menuBottomIconWrap.innerHTML = __ICONS.menu || '';
   document.getElementById('btn-menu-bottom').onclick = () => document.getElementById('btn-menu').click();
-  document.getElementById('btn-notif').innerHTML += ICONS.bell;
-  document.getElementById('btn-drawer-close').innerHTML = ICONS.close;
-  document.getElementById('fab-add-jadwal').innerHTML = ICONS.plus;
+  document.getElementById('btn-notif').innerHTML += (__ICONS.bell || '');
+  document.getElementById('btn-drawer-close').innerHTML = (__ICONS.close || '');
+  document.getElementById('fab-add-jadwal').innerHTML = (__ICONS.plus || '');
 
-  const NAV_ICON = { overview: ICONS.home, pakan: ICONS.feed, lampu: ICONS.lamp, notifikasi: ICONS.bell };
+  const NAV_ICON = { overview: __ICONS.home || '', pakan: __ICONS.feed || '', lampu: __ICONS.lamp || '', kipas: __ICONS.fan || '', notifikasi: __ICONS.bell || '' };
   document.querySelectorAll('.nav-btn[data-page]').forEach((btn) => {
-    btn.querySelector('.nav-icon-wrap').innerHTML = NAV_ICON[btn.dataset.page];
+    const wrap = btn.querySelector('.nav-icon-wrap'); if (wrap) wrap.innerHTML = NAV_ICON[btn.dataset.page] || '';
   });
 
   const DRAWER_META = {
-    overview: [ICONS.home, 'Overview'], suhu: [ICONS.thermo, 'Suhu & Kelembapan'], air: [ICONS.droplet, 'Air / Pompa'], telur: [ICONS.egg, 'Telur'],
-    pakan: [ICONS.feed, 'Pakan'], lampu: [ICONS.lamp, 'Lampu'], jadwal: [ICONS.calendar, 'Jadwal'],
-    riwayat: [ICONS.history, 'Riwayat'], notifikasi: [ICONS.bell, 'Notifikasi'], pengaturan: [ICONS.settings, 'Pengaturan'],
+    overview: [__ICONS.home || '', 'Overview'], suhu: [__ICONS.thermo || '', 'Suhu & Kelembapan'], air: [__ICONS.droplet || '', 'Air / Pompa'], telur: [__ICONS.egg || '', 'Telur'],
+    pakan: [__ICONS.feed || '', 'Pakan'], lampu: [__ICONS.lamp || '', 'Lampu'], kipas: [__ICONS.fan || '', 'Kipas'], jadwal: [__ICONS.calendar || '', 'Jadwal'],
+    riwayat: [__ICONS.history || '', 'Riwayat'], notifikasi: [__ICONS.bell || '', 'Notifikasi'], pengaturan: [__ICONS.settings || '', 'Pengaturan'],
   };
   document.querySelectorAll('.drawer-item[data-page]').forEach((a) => {
-    const [icon, label] = DRAWER_META[a.dataset.page];
+    const meta = DRAWER_META[a.dataset.page] || ['',''];
+    const [icon, label] = meta;
     a.innerHTML = icon + '<span>' + label + '</span>';
   });
 </script>

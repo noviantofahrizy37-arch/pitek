@@ -150,6 +150,15 @@ const KandangSocket = (() => {
     if (demoStop) { demoStop(); demoStop = null; }
   }
 
+  // Public controls for demo mode (useful from settings UI)
+  function startDemoPublic() {
+    if (!demoStop) startDemo();
+  }
+  function stopDemoPublic() {
+    stopDemoIfRunning();
+    Store.patch('connection', { status: 'offline', demo: false });
+  }
+
   function reconnect(immediate = false) {
     clearTimeout(reconnectTimer);
     stopDemoIfRunning();
@@ -216,5 +225,5 @@ const KandangSocket = (() => {
     }
   }
 
-  return { connect, reconnect, setUrl, currentUrl, sendCommand };
+  return { connect, reconnect, setUrl, currentUrl, sendCommand, startDemo: startDemoPublic, stopDemo: stopDemoPublic };
 })();

@@ -35,9 +35,10 @@ const PageNotifikasi = (() => {
   }
 
   function typeIcon(level) {
-    if (level === 'danger') return { icon: ICONS.warning, bg: 'var(--danger-soft)', color: 'var(--danger)' };
-    if (level === 'warn') return { icon: ICONS.warning, bg: 'var(--warning-soft)', color: 'var(--warning)' };
-    return { icon: ICONS.bell, bg: 'var(--surface-alt)', color: 'var(--text-secondary)' };
+    const _ICONS = (typeof ICONS !== 'undefined' ? ICONS : (window.ICONS || {}));
+    if (level === 'danger') return { icon: _ICONS.warning || '', bg: 'var(--danger-soft)', color: 'var(--danger)' };
+    if (level === 'warn') return { icon: _ICONS.warning || '', bg: 'var(--warning-soft)', color: 'var(--warning)' };
+    return { icon: _ICONS.bell || '', bg: 'var(--surface-alt)', color: 'var(--text-secondary)' };
   }
 
   function row(n) {
@@ -51,7 +52,7 @@ const PageNotifikasi = (() => {
       <div class="li-time">${Fmt.relative(n.t)}</div>
     </div>`;
   }
-  function empty() { return `<div class="empty-state">${ICONS.bell}<div class="es-title">Tidak ada notifikasi</div><div class="es-sub">Kamu akan diberi tahu kalau ada masalah</div></div>`; }
+  function empty() { const _ICONS = (typeof ICONS !== 'undefined' ? ICONS : (window.ICONS || {})); return `<div class="empty-state">${_ICONS.bell || ''}<div class="es-title">Tidak ada notifikasi</div><div class="es-sub">Kamu akan diberi tahu kalau ada masalah</div></div>`; }
 
   return { mount, render };
 })();

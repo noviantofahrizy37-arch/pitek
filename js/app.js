@@ -1,5 +1,5 @@
 const App = (() => {
-  const PAGES = ['overview', 'pakan', 'lampu', 'suhu', 'air', 'telur', 'jadwal', 'riwayat', 'notifikasi', 'pengaturan'];
+  const PAGES = ['overview', 'pakan', 'lampu', 'suhu', 'kipas', 'air', 'telur', 'jadwal', 'riwayat', 'notifikasi', 'pengaturan'];
   let current = 'overview';
 
   function navigate(page) {
@@ -47,13 +47,13 @@ const App = (() => {
     Modal.mount();
     MockData.seed();
 
-    [PageOverview, PagePakan, PageLampu, PageSuhu, PageAir, PageTelur, PageJadwal, PageRiwayat, PageNotifikasi, PagePengaturan]
+    [PageOverview, PagePakan, PageLampu, PageSuhu, PageKipas, PageAir, PageTelur, PageJadwal, PageRiwayat, PageNotifikasi, PagePengaturan]
       .forEach((p) => p.mount());
 
     Store.subscribe(renderHeader);
     renderHeader();
     // Trigger first paint for every page (subscriptions above only fire on future changes)
-    [PageOverview, PagePakan, PageLampu, PageSuhu, PageAir, PageTelur, PageJadwal, PageRiwayat, PageNotifikasi, PagePengaturan]
+    [PageOverview, PagePakan, PageLampu, PageSuhu, PageKipas, PageAir, PageTelur, PageJadwal, PageRiwayat, PageNotifikasi, PagePengaturan]
       .forEach((p) => p.render());
 
     bindChrome();

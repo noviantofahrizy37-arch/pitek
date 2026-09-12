@@ -30,7 +30,7 @@ const Store = (() => {
       riwayat: [],
     },
 
-    suhuControl: { minC: 24, maxC: 32, mode: 'auto', kipasOn: false, kipasManual: false },
+    suhuControl: { minC: 32, maxC: 35, mode: 'auto', kipasOn: false, kipasManual: false },
 
     pompa: {
       mode: 'auto', isOn: false, minLevel: 20, maxLevel: 90,
@@ -47,7 +47,7 @@ const Store = (() => {
 
     settings: {
       namaKandang: 'Kandang Ayam A',
-      thresholdSuhuMin: 24, thresholdSuhuMax: 32,
+      thresholdSuhuMin: 32, thresholdSuhuMax: 35,
       thresholdLdr: 40, targetPakanDefault: 250,
       apiKey: '',
     },

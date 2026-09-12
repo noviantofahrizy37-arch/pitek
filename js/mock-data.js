@@ -102,15 +102,38 @@ const MockData = (() => {
 
     // Auto behaviours mirroring the ESP32 flowchart logic, so demo mode
     // *feels* like the real automation loop.
-    if (s.lampu.mode === 'auto') {
-      const shouldBeOn = s.sensors.gelap;
-      if (shouldBeOn !== s.lampu.isOn) {
-        s.lampu.isOn = shouldBeOn;
-        Store.addRiwayat({ category: 'lampu', text: `Lampu ${shouldBeOn ? 'ON' : 'OFF'} — otomatis (${shouldBeOn ? 'gelap' : 'terang'})` });
-      }
-    }
+    // Temperature control (DOC rules):
+    // - Cold: suhu < minC -> pemanas (lampu) ON, kipas OFF
+    // - Normal: minC <= suhu <= maxC -> pemanas OFF, kipas OFF
+    // - Hot: suhu > maxC -> pemanas OFF, kipas ON
     if (s.suhuControl.mode === 'auto') {
-      s.suhuControl.kipasOn = s.sensors.suhu > s.suhuControl.maxC;
+      const temp = s.sensors.suhu;
+      const min = s.suhuControl.minC;
+      const max = s.suhuControl.maxC;
+      const shouldHeater = temp < min;
+      const shouldKipas = temp > max;
+
+      // Heater implemented via `lampu.isOn` (pemanas). Respect manual override.
+      if (!s.lampu.manualOn) {
+        if (shouldHeater !== s.lampu.isOn) {
+          s.lampu.isOn = shouldHeater;
+          Store.addRiwayat({ category: 'lampu', text: `Pemanas ${shouldHeater ? 'ON' : 'OFF'} — suhu ${temp}°C` });
+        }
+      }
+
+      if (shouldKipas !== s.suhuControl.kipasOn) {
+        s.suhuControl.kipasOn = shouldKipas;
+        Store.addRiwayat({ category: 'sistem', text: `Kipas ${shouldKipas ? 'ON' : 'OFF'} — suhu ${temp}°C` });
+      }
+    } else {
+      // Fallback: when suhuControl not auto, keep lampu auto based on light sensor
+      if (s.lampu.mode === 'auto') {
+        const shouldBeOn = s.sensors.gelap;
+        if (shouldBeOn !== s.lampu.isOn) {
+          s.lampu.isOn = shouldBeOn;
+          Store.addRiwayat({ category: 'lampu', text: `Lampu ${shouldBeOn ? 'ON' : 'OFF'} — otomatis (${shouldBeOn ? 'gelap' : 'terang'})` });
+        }
+      }
     }
     if (s.pompa.mode === 'auto') {
       const shouldPump = s.sensors.waterLevel < s.pompa.minLevel;

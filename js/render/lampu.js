@@ -1,5 +1,6 @@
 const PageLampu = (() => {
   let el;
+  let _ICONS;
   function mount() { el = document.getElementById('page-lampu'); Store.subscribe((section) => { if (section === 'lampu' || section === 'sensors') render(); }); }
 
   function render() {
@@ -7,6 +8,7 @@ const PageLampu = (() => {
     const s = Store.get().lampu;
     const ldr = Store.get().sensors.ldr;
     const isAuto = s.mode === 'auto';
+    _ICONS = (typeof ICONS !== 'undefined' ? ICONS : (window.ICONS || {}));
 
     el.innerHTML = `
       <div class="page-head">
@@ -17,7 +19,7 @@ const PageLampu = (() => {
       <div class="card">
         <div class="card-row">
           <div class="flex items-center gap-12">
-            <div class="li-icon" style="background:var(--light-soft);color:var(--light);width:46px;height:46px;border-radius:16px">${ICONS.lamp}</div>
+            <div class="li-icon" style="background:var(--light-soft);color:var(--light);width:46px;height:46px;border-radius:16px">${_ICONS.lamp || ''}</div>
             <div>
               <div class="li-title">Lampu Kandang</div>
               <div class="li-sub">Kondisi: ${Store.get().sensors.gelap ? 'Gelap' : 'Terang'} (LDR ${ldr ?? '--'})</div>
@@ -53,7 +55,7 @@ const PageLampu = (() => {
         <div class="field-hint">Nilai LDR saat ini: ${ldr ?? '--'} — ${Store.get().sensors.gelap ? 'di bawah ambang batas (gelap)' : 'di atas ambang batas (terang)'}</div>
       </div>
 
-      <div class="section-label">Jadwal Lampu<span class="hint" id="lp-see-jadwal" style="cursor:pointer">Kelola ${ICONS.chevronRight}</span></div>
+      <div class="section-label">Jadwal Lampu<span class="hint" id="lp-see-jadwal" style="cursor:pointer">Kelola ${_ICONS.chevronRight || ''}</span></div>
       <div class="card">${jadwalPreview()}</div>
 
       <div class="section-label">Riwayat Lampu</div>
@@ -74,21 +76,21 @@ const PageLampu = (() => {
 
   function jadwalPreview() {
     const list = Store.get().jadwal.filter((j) => j.type === 'lampu');
-    if (!list.length) return `<div class="empty-state">${ICONS.lamp}<div class="es-title">Kosong</div><div class="es-sub">Belum ada jadwal lampu</div></div>`;
+    if (!list.length) return `<div class="empty-state">${_ICONS.lamp || ''}<div class="es-title">Kosong</div><div class="es-sub">Belum ada jadwal lampu</div></div>`;
     return list.map((j) => `<div class="list-item">
-      <div class="li-icon" style="background:var(--light-soft);color:var(--light)">${ICONS.clock}</div>
+      <div class="li-icon" style="background:var(--light-soft);color:var(--light)">${_ICONS.clock || ''}</div>
       <div class="li-main"><div class="li-title">${j.label}</div><div class="li-sub">${j.time}</div></div>
       <span class="pill ${j.active ? 'up' : 'neutral'}">${j.active ? 'Aktif' : 'Nonaktif'}</span>
     </div>`).join('');
   }
   function row(r) {
     return `<div class="list-item">
-      <div class="li-icon" style="background:var(--light-soft);color:var(--light)">${ICONS.lamp}</div>
+      <div class="li-icon" style="background:var(--light-soft);color:var(--light)">${_ICONS.lamp || ''}</div>
       <div class="li-main"><div class="li-title">${r.aksi}</div></div>
       <div class="li-time">${Fmt.time(r.t)}</div>
     </div>`;
   }
-  function empty() { return `<div class="empty-state">${ICONS.lamp}<div class="es-title">Kosong</div><div class="es-sub">Belum ada riwayat lampu</div></div>`; }
+  function empty() { return `<div class="empty-state">${_ICONS.lamp || ''}<div class="es-title">Kosong</div><div class="es-sub">Belum ada riwayat lampu</div></div>`; }
 
   return { mount, render };
 })();

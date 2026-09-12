@@ -1,11 +1,13 @@
 const PageTelur = (() => {
   let el;
+  let _ICONS;
   function mount() { el = document.getElementById('page-telur'); Store.subscribe((section) => { if (section === 'telur') render(); }); }
 
   function render() {
     if (!el) return;
     const t = Store.get().telur;
     const max = Math.max(1, ...t.perHari.map((d) => d.val));
+    _ICONS = (typeof ICONS !== 'undefined' ? ICONS : (window.ICONS || {}));
 
     el.innerHTML = `
       <div class="page-head">
@@ -15,7 +17,7 @@ const PageTelur = (() => {
 
       <div class="kpi-grid">
         <div class="kpi-card primary" style="grid-column:1/-1">
-          <div class="kpi-icon">${ICONS.egg}</div>
+          <div class="kpi-icon">${_ICONS.egg || ''}</div>
           <div class="kpi-label">Jumlah Telur Hari Ini</div>
           <div class="kpi-value">${t.hariIni} butir</div>
         </div>
@@ -41,12 +43,12 @@ const PageTelur = (() => {
 
   function row(d) {
     return `<div class="list-item">
-      <div class="li-icon" style="background:var(--egg-soft);color:var(--egg)">${ICONS.egg}</div>
+      <div class="li-icon" style="background:var(--egg-soft);color:var(--egg)">${_ICONS.egg || ''}</div>
       <div class="li-main"><div class="li-title">${d.jumlah} telur baru terdeteksi</div></div>
       <div class="li-time">${Fmt.time(d.t)}</div>
     </div>`;
   }
-  function empty() { return `<div class="empty-state">${ICONS.egg}<div class="es-title">Kosong</div><div class="es-sub">Belum ada deteksi telur</div></div>`; }
+  function empty() { return `<div class="empty-state">${_ICONS.egg || ''}<div class="es-title">Kosong</div><div class="es-sub">Belum ada deteksi telur</div></div>`; }
 
   return { mount, render };
 })();
