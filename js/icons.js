@@ -212,3 +212,31 @@ Object.keys(ICONS).forEach((k) => {
     // ignore
   }
 });
+
+// If the page is opened via `file://` (no HTTP server), ensure any
+// embedded `ICONS` entries (which may include full SVG exports) are
+// sanitized and copied into `window.ICONS` so the UI can render icons
+// without relying on `fetch()` (which is blocked on file: origins).
+try {
+  if (typeof window !== 'undefined' && window.location && window.location.protocol === 'file:') {
+    window.ICONS = window.ICONS || {};
+    window.ICONS = Object.assign({}, window.ICONS);
+    Object.keys(ICONS || {}).forEach((k) => {
+      try {
+        let s = ICONS[k];
+        if (typeof s !== 'string') return;
+        s = s.replace(/<\?xml[\s\S]*?\?>/gi, '');
+        s = s.replace(/<!DOCTYPE[\s\S]*?>/gi, '');
+        s = s.replace(/<!--([\s\S]*?)-->/g, '');
+        s = s.replace(/\swidth=\"[^\"]*\"/gi, '');
+        s = s.replace(/\sheight=\"[^\"]*\"/gi, '');
+        s = s.replace(/\swidth=\'[^']*\'/gi, '');
+        s = s.replace(/\sheight=\'[^']*\'/gi, '');
+        s = s.replace(/fill=\"#([0-9a-fA-F]{3,6})\"/g, 'fill="currentColor"');
+        s = s.replace(/stroke=\"#([0-9a-fA-F]{3,6})\"/g, 'stroke="currentColor"');
+        s = s.replace(/>\s+</g, '><').trim();
+        window.ICONS[k] = s;
+      } catch (e) { /* ignore individual icon failures */ }
+    });
+  }
+} catch (e) { /* ignore */ }
